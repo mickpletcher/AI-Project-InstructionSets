@@ -67,7 +67,10 @@ def inline_destinations(text):
     This is a scoped file-link checker, not a complete CommonMark renderer.
     Reference-style links and heading anchors are intentionally out of scope.
     """
-    for match in re.finditer(r'(?<!!)\[(?:\\.|[^\]\\])*\]\(|!\[(?:\\.|[^\]\\])*\]\(', text):
+    consumed_until = 0
+    for match in re.finditer(r'(?<!!)\[(?:\\[\s\S]|[^\]\\])*\]\(|!\[(?:\\[\s\S]|[^\]\\])*\]\(', text):
+        if match.start() < consumed_until:
+            continue
         i = match.end()
         while i < len(text) and text[i].isspace():
             i += 1
@@ -125,6 +128,8 @@ def inline_destinations(text):
             while end < len(text) and text[end].isspace():
                 end += 1
         if end < len(text) and text[end] == ')':
+            # A title or destination is literal text, not another inline link.
+            consumed_until = end + 1
             yield ''.join(target)
 
 

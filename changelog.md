@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Recognize hard line breaks in link/image labels and avoid parsing links inside literal titles or destinations.
+
 - Isolate validator mutation fixtures from published sets and validate the real checkout separately.
 - Check inline Markdown destinations with balanced/escaped parentheses and optional titles.
 
