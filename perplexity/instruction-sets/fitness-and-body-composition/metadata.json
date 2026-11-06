@@ -1,0 +1,9 @@
+{
+  "id": "fitness-and-body-composition",
+  "name": "Fitness and body composition",
+  "summary": "Sustainable adult fitness planning, safe progress review and privacy-aware context.",
+  "platform": "perplexity",
+  "surface": "Perplexity Space custom instructions (candidate adaptation)",
+  "version": "0.1.0",
+  "status": "draft"
+}

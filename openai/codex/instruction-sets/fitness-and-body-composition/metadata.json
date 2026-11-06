@@ -1,0 +1,9 @@
+{
+  "id": "fitness-and-body-composition",
+  "name": "Fitness and body composition",
+  "summary": "Sustainable adult fitness planning, safe progress review and privacy-aware context.",
+  "platform": "openai/codex",
+  "surface": "Codex repository-scoped AGENTS.md",
+  "version": "0.1.0",
+  "status": "draft"
+}
