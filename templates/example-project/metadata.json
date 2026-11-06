@@ -1,0 +1,9 @@
+{
+  "id": "example-project",
+  "name": "Example project",
+  "summary": "Template for project-scoped working agreements.",
+  "platform": "template",
+  "surface": "Replace with the exact host and project surface.",
+  "version": "0.1.0",
+  "status": "draft"
+}
