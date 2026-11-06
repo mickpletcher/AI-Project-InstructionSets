@@ -16,7 +16,19 @@ class ValidationTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name) / 'repo'
-        shutil.copytree(ROOT, self.root, ignore=shutil.ignore_patterns('.git', '__pycache__'))
+        # Mutation tests must not inherit shipped sets or their catalog.
+        self.root.mkdir()
+        for filename in v.REQUIRED:
+            path = self.root / filename
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("# Fixture\n", encoding="utf-8")
+        for platform in v.PLATFORMS:
+            area = self.root / platform
+            (area / 'instruction-sets').mkdir(parents=True)
+            (area / 'README.md').write_text('# Platform\n', encoding='utf-8')
+        shutil.copytree(ROOT / 'templates/example-project', self.root / 'templates/example-project')
+        (self.root / 'catalog.json').write_text('{"schema_version":1,"instruction_sets":[]}', encoding='utf-8')
+        (self.root / 'CATALOG.md').write_text(v.render_catalog([]), encoding='utf-8')
 
     def errors(self):
         return '\n'.join(v.validate(self.root))
@@ -31,7 +43,7 @@ class ValidationTests(unittest.TestCase):
         (self.root / 'catalog.json').write_text(json.dumps({'schema_version': 1, 'instruction_sets': [path]}))
         return target
 
-    def test_repository_passes(self):
+    def test_empty_fixture_passes(self):
         self.assertEqual([], v.validate(self.root))
 
     def test_publish_and_regenerate(self):
@@ -102,6 +114,71 @@ class ValidationTests(unittest.TestCase):
         self.publish('draft')
         (self.root / 'catalog.json').write_text('{"schema_version":1,"instruction_sets":[]}')
         self.assertEqual([], v.validate(self.root))
+
+
+class CheckoutTests(unittest.TestCase):
+    def test_actual_checkout_passes(self):
+        # Do not replace this with the synthetic mutation fixture.
+        self.assertEqual([], v.validate(ROOT))
+
+    def test_mutations_with_published_checkout(self):
+        global ROOT
+        original = ROOT
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / 'repo'
+            shutil.copytree(original, root, ignore=shutil.ignore_patterns('.git', '__pycache__'))
+            path = 'claude/instruction-sets/published-fixture'
+            folder = root / path
+            shutil.copytree(root / 'templates/example-project', folder)
+            meta = json.loads((folder / 'metadata.json').read_text(encoding='utf-8'))
+            meta.update(id='published-fixture', platform='claude', status='published')
+            (folder / 'metadata.json').write_text(json.dumps(meta), encoding='utf-8')
+            inventory = json.loads((root / 'catalog.json').read_text(encoding='utf-8'))
+            inventory['instruction_sets'].append(path)
+            (root / 'catalog.json').write_text(json.dumps(inventory), encoding='utf-8')
+            self.assertEqual([], v.validate(root, True))
+            try:
+                ROOT = root
+                suite = unittest.TestSuite(ValidationTests(name) for name in (
+                    'test_publish_and_regenerate', 'test_unlisted_draft_allowed'))
+                result = unittest.TestResult()
+                suite.run(result)
+                self.assertEqual([], result.errors)
+                self.assertEqual([], result.failures)
+                self.assertEqual([], v.validate(ROOT))
+            finally:
+                ROOT = original
+
+
+class LinkTests(unittest.TestCase):
+    def test_destinations(self):
+        cases = {
+            '[x](guide_(draft).md)': ['guide_(draft).md'],
+            r'[x](guide_\(draft\).md)': ['guide_(draft).md'],
+            '[x](a_(b_(c)).md "Title")': ['a_(b_(c)).md'],
+            "[x](missing.md 'Title')": ['missing.md'],
+            '[x](missing.md (Title))': ['missing.md'],
+            '[x](<guide draft.md> "Title")': ['guide draft.md'],
+            '![x](image_(draft).png)': ['image_(draft).png'],
+            '[x](one.md) [y](two.md "Title")': ['one.md', 'two.md'],
+            r'[x](one.md "A \"quoted\" title")': ['one.md'],
+            '[x](broken_(file.md)': [],
+        }
+        for source, expected in cases.items():
+            with self.subTest(source=source):
+                self.assertEqual(expected, list(v.inline_destinations(source)))
+
+    def test_parenthesized_file_and_titled_missing_target(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'guide_(draft).md').write_text('# Guide\n', encoding='utf-8')
+            (root / 'links.md').write_text(
+                '[valid](guide_(draft).md)\n'
+                r'[escaped](guide_\(draft\).md)' '\n'
+                '[missing](missing.md "Guide")\n', encoding='utf-8')
+            errors = []
+            v.check_links(root, errors)
+            self.assertEqual(['links.md: broken or escaping relative link missing.md'], errors)
 
 
 if __name__ == '__main__':
