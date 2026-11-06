@@ -25,7 +25,7 @@ class ValidationTests(unittest.TestCase):
         path = 'openai/codex/instruction-sets/example-project'
         target = self.root / path
         shutil.copytree(self.root / 'templates/example-project', target)
-        meta = json.loads((target / 'metadata.json').read_text())
+        meta = json.loads((target / 'metadata.json').read_text(encoding="utf-8"))
         meta.update(platform='openai/codex', surface='AGENTS.md', status=status)
         (target / 'metadata.json').write_text(json.dumps(meta))
         (self.root / 'catalog.json').write_text(json.dumps({'schema_version': 1, 'instruction_sets': [path]}))
@@ -38,7 +38,7 @@ class ValidationTests(unittest.TestCase):
         self.publish()
         self.assertEqual([], v.validate(self.root, True))
         self.assertEqual([], v.validate(self.root))
-        self.assertIn('AGENTS', (self.root / 'openai/codex/instruction-sets/example-project/metadata.json').read_text())
+        self.assertIn('AGENTS', (self.root / 'openai/codex/instruction-sets/example-project/metadata.json').read_text(encoding="utf-8"))
 
     def test_draft_not_publishable(self):
         self.publish('draft')
@@ -54,14 +54,14 @@ class ValidationTests(unittest.TestCase):
 
     def test_wrong_platform_and_version(self):
         p = self.publish() / 'metadata.json'
-        m = json.loads(p.read_text()); m.update(platform='claude', version='latest')
+        m = json.loads(p.read_text(encoding="utf-8")); m.update(platform='claude', version='latest')
         p.write_text(json.dumps(m))
         self.assertIn('platform mismatch', self.errors())
         self.assertIn('version must be', self.errors())
 
     def test_missing_heading(self):
         p = self.publish() / 'instructions.md'
-        p.write_text(p.read_text().replace('## Constraints', '## Other'))
+        p.write_text(p.read_text(encoding="utf-8").replace('## Constraints', '## Other'), encoding="utf-8")
         self.assertIn('missing heading Constraints', self.errors())
 
     def test_published_missing_inventory(self):
@@ -71,7 +71,7 @@ class ValidationTests(unittest.TestCase):
 
     def test_duplicate_inventory(self):
         self.publish()
-        p = self.root / 'catalog.json'; m = json.loads(p.read_text()); m['instruction_sets'] *= 2; p.write_text(json.dumps(m))
+        p = self.root / 'catalog.json'; m = json.loads(p.read_text(encoding="utf-8")); m['instruction_sets'] *= 2; p.write_text(json.dumps(m))
         self.assertIn('duplicate path', self.errors())
 
     def test_unsafe_inventory(self):
