@@ -202,6 +202,38 @@ class LinkTests(unittest.TestCase):
         self.assertEqual(['prefix[inner](missing.md)', 'following.md'],
                          list(v.inline_destinations(source)))
 
+    def test_unmatched_literal_bracket_does_not_hide_following_link(self):
+        cases = (
+            ('[outer](present.md "See [literal")', 'present.md'),
+            ("[outer](present.md 'See [literal')", 'present.md'),
+            ('[outer](present.md (See [literal))', 'present.md'),
+            ('[outer](<present[literal.md>)', 'present[literal.md'),
+        )
+        for prefix, present in cases:
+            for marker in ('', '!'):
+                with self.subTest(prefix=prefix, marker=marker):
+                    source = marker + prefix + ' [next](missing.md) [last](present.md)'
+                    self.assertEqual([present, 'missing.md', 'present.md'],
+                                     list(v.inline_destinations(source)))
+                    with tempfile.TemporaryDirectory() as tmp:
+                        root = Path(tmp)
+                        (root / present).write_text('# Present', encoding='utf-8')
+                        (root / 'present.md').write_text('# Present', encoding='utf-8')
+                        (root / 'probe.md').write_text(source, encoding='utf-8')
+                        errors = []
+                        v.check_links(root, errors)
+                        self.assertEqual(['probe.md: broken or escaping relative link missing.md'], errors)
+
+    def test_invalid_candidate_still_advances(self):
+        cases = (
+            '[bad](<unterminated\n[next](missing.md)',
+            '[bad](unbalanced( [next](missing.md)',
+            '[bad](target.md "unterminated [next](missing.md)',
+        )
+        for source in cases:
+            with self.subTest(source=source):
+                self.assertEqual(['missing.md'], list(v.inline_destinations(source)))
+
     def test_parenthesized_file_and_titled_missing_target(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
