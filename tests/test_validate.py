@@ -168,6 +168,40 @@ class LinkTests(unittest.TestCase):
             with self.subTest(source=source):
                 self.assertEqual(expected, list(v.inline_destinations(source)))
 
+    def test_hard_break_labels(self):
+        for marker in ('', '!'):
+            for newline in ('\n', '\r\n'):
+                with self.subTest(marker=marker, newline=repr(newline)):
+                    source = marker + '[first' + chr(92) + newline + 'second](missing.md)'
+                    self.assertEqual(['missing.md'], list(v.inline_destinations(source)))
+                    with tempfile.TemporaryDirectory() as tmp:
+                        root = Path(tmp)
+                        (root / 'probe.md').write_text(source, encoding='utf-8')
+                        errors = []
+                        v.check_links(root, errors)
+                        self.assertEqual(['probe.md: broken or escaping relative link missing.md'], errors)
+
+    def test_link_like_text_in_title_is_literal(self):
+        for marker in ('', '!'):
+            with self.subTest(marker=marker):
+                source = marker + "[outer](present.md \"See [inner](missing.md 'hint')\")"
+                self.assertEqual(['present.md'], list(v.inline_destinations(source)))
+                # A genuine following link must still be checked.
+                self.assertEqual(['present.md', 'following.md'],
+                                 list(v.inline_destinations(source + ' [next](following.md)')))
+                with tempfile.TemporaryDirectory() as tmp:
+                    root = Path(tmp)
+                    (root / 'present.md').write_text('# Present', encoding='utf-8')
+                    (root / 'probe.md').write_text(source, encoding='utf-8')
+                    errors = []
+                    v.check_links(root, errors)
+                    self.assertEqual([], errors)
+
+    def test_link_like_text_in_destination_is_literal(self):
+        source = '[outer](<prefix[inner](missing.md)>) [next](following.md)'
+        self.assertEqual(['prefix[inner](missing.md)', 'following.md'],
+                         list(v.inline_destinations(source)))
+
     def test_parenthesized_file_and_titled_missing_target(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
