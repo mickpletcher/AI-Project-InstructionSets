@@ -14,6 +14,10 @@ This repository follows the platform organization and authoring workflow of [AI-
 
 A project instruction set stays in scope across related tasks. A skill provides a reusable capability. Neither grants tools, account access, permission to publish, or authority to override host rules.
 
+## Draft instruction sets
+
+- [Fitness and body composition](claude/instruction-sets/fitness-and-body-composition/README.md): privacy-aware sustainable fitness planning, with [cross-platform adaptations](docs/fitness-portability.md). Draft only; no host/model or clinical validation claimed.
+
 ## Platform areas
 
 - [Claude](claude/README.md): Claude Projects and Claude Code are distinct targets.

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add draft portable fitness/body-composition instructions across seven platform areas, with standalone synchronized text, private-context template, safety boundaries and unrun host-test cases.
+
 - Resume link matching after each parsed link so unmatched literal brackets cannot hide later links.
 
 - Recognize hard line breaks in link/image labels and avoid parsing links inside literal titles or destinations.
