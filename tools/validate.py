@@ -61,12 +61,79 @@ def render_catalog(entries):
     return '\n'.join(lines) + '\n'
 
 
+def inline_destinations(text):
+    """Yield inline Markdown destinations, including escapes, nesting and titles.
+
+    This is a scoped file-link checker, not a complete CommonMark renderer.
+    Reference-style links and heading anchors are intentionally out of scope.
+    """
+    for match in re.finditer(r'(?<!!)\[(?:\\.|[^\]\\])*\]\(|!\[(?:\\.|[^\]\\])*\]\(', text):
+        i = match.end()
+        while i < len(text) and text[i].isspace():
+            i += 1
+        target = []
+        angle = i < len(text) and text[i] == '<'
+        if angle:
+            i += 1
+        depth = 0
+        while i < len(text):
+            char = text[i]
+            if char == '\\' and i + 1 < len(text) and text[i + 1] in r'!"#$%&\'()*+,-./:;<=>?@[\]^_`{|}~':
+                target.append(text[i + 1])
+                i += 2
+                continue
+            if angle:
+                if char == '>':
+                    i += 1
+                    break
+                if char in '\r\n<':
+                    break
+            else:
+                if char == '(':
+                    depth += 1
+                elif char == ')':
+                    if depth == 0:
+                        break
+                    depth -= 1
+                elif char.isspace():
+                    break
+            target.append(char)
+            i += 1
+        else:
+            continue
+        if angle and (i == 0 or text[i - 1] != '>'):
+            continue
+        if depth:
+            continue
+        # A destination may be followed by whitespace and an optional title.
+        end = i
+        while end < len(text) and text[end].isspace():
+            end += 1
+        if end > i and end < len(text) and text[end] in ('"', "'", '('):
+            close = ')' if text[end] == '(' else text[end]
+            end += 1
+            while end < len(text):
+                if text[end] == '\\' and end + 1 < len(text):
+                    end += 2
+                    continue
+                if text[end] == close:
+                    end += 1
+                    break
+                end += 1
+            else:
+                continue
+            while end < len(text) and text[end].isspace():
+                end += 1
+        if end < len(text) and text[end] == ')':
+            yield ''.join(target)
+
+
 def check_links(root, errors):
     for path in root.rglob('*.md'):
         if any(part.startswith('.') for part in path.relative_to(root).parts[:-1]):
             continue
         text = re.sub(r'```.*?```', '', path.read_text(encoding='utf-8'), flags=re.S)
-        for target in re.findall(r'!?\[[^\]]*\]\(([^\s)]+)\)', text):
+        for target in inline_destinations(text):
             try:
                 url = urlsplit(target)
             except ValueError:
