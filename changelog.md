@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Resume link matching after each parsed link so unmatched literal brackets cannot hide later links.
+
 - Recognize hard line breaks in link/image labels and avoid parsing links inside literal titles or destinations.
 
 - Isolate validator mutation fixtures from published sets and validate the real checkout separately.
